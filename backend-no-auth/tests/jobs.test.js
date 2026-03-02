@@ -76,3 +76,92 @@ describe('GET /api/jobs/:id', () => {
     await api.get(`/api/jobs/${invalidId}`).expect(400);
   });
 });
+
+
+describe("POST /api/jobs", () => {
+    describe("when the payload is valid", () => {
+        it("should create a new job with status 201", async () => {
+        const newJob = {
+        title: "Hesen kassa2",
+        type: "Kassa",
+        description: "Hesen kassa2",
+        company: {
+            name: "Hese2",
+            contactEmail: "hese2@example.com",
+            contactPhone: "9876543212"
+        }
+    };
+
+        const response = await api
+            .post("/api/jobs")
+            .send(newJob)
+            .expect(201)
+            .expect("Content-Type", /application\/json/);
+
+        expect(response.body.title).toBe(newJob.title);
+
+        const jobsAtEnd = await jobsInDb();
+        expect(jobsAtEnd).toHaveLength(jobs.length + 1);
+        expect(jobsAtEnd.map((t) => t.title)).toContain(newJob.title);
+        });
+    });
+
+    describe("when the payload is invalid", () => {
+            it("should return 400 if required fields are missing", async () => {
+                const incompleteJob = { name: "Missing Info Jobs" };
+
+                await api.post("/api/jobs").send(incompleteJob).expect(400);
+
+                const jobsAtEnd = await jobsInDb();
+                expect(jobsAtEnd).toHaveLength(jobs.length);
+            });
+    });
+});
+
+describe("PUT /api/jobs/:id", () => {
+    describe("when id is valid", () => {
+        it("should update job and return updated job", async ()=>{
+            const job = await Job.findOne();
+            const updates = {description:"nuh uh"};
+            const response = await api
+                .put(`/api/jobs/${job._id}`)
+                .send(updates)
+                .expect(200)
+                .expect("Content-Type", /application\/json/);
+            expect(response.body.description).toBe(updates.description);
+
+        });
+    });
+    describe("when the id is invalid", () => {
+    it("should return 400 for an invalid ID format", async () => {
+        const invalidId = "12345";
+        await api.put(`/api/jobs/${invalidId}`).send({}).expect(400);
+        });
+    });
+});
+
+describe("DELETE /api/jobs/:id", () => {
+    describe("when the id is valid", () => {
+        it("should delete the job and return status 204", async () => {
+        const jobsAtStart = await jobsInDb();
+        const jobToDelete = jobsAtStart[0];
+
+        await api.delete(`/api/jobs/${jobToDelete._id}`).expect(204);
+
+        const jobsAtEnd = await jobsInDb();
+        expect(jobsAtEnd).toHaveLength(jobsAtStart.length - 1);
+        expect(jobsAtEnd.map((t) => t.title)).not.toContain(jobToDelete.title);
+        });
+    });
+
+    describe("when the id is invalid", () => {
+        it("should return 400 for an invalid ID format", async () => {
+        const invalidId = "12345";
+        await api.delete(`/api/jobs/${invalidId}`).expect(400);
+        });
+    });
+});
+
+afterAll(async () => {
+  await mongoose.connection.close();
+});
